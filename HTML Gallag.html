@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced HTML5 Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<button id="restartButton" onclick="restartGame()">Redo</button>
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const player = { x: canvas.width / 2, y: canvas.height - 30, width: 50, height: 50, speed: 5, health: 100, attackPower: 10, hitCount: 0 };
+    const bullets = [];
+    const enemies = [];
+    const keys = {};
+
+    function movePlayer() {
+        if (keys["ArrowLeft"] && player.x - player.speed > 0) {
+            player.x -= player.speed;
+        }
+        if (keys["ArrowRight"] && player.x + player.width + player.speed < canvas.width) {
+            player.x += player.speed;
+        }
+    }
+
+    function shootBullet() {
+        const bullet = { x: player.x + player.width / 2, y: player.y, width: 5, height: 10, speed: 8 };
+        bullets.push(bullet);
+    }
+
+    function moveBullets() {
+        for (let i = 0; i < bullets.length; i++) {
+            bullets[i].y -= bullets[i].speed;
+            if (bullets[i].y < 0) {
+                bullets.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    function createEnemy() {
+        const enemy = { x: Math.random() * (canvas.width - 30), y: 0, width: 30, height: 30, speed: 3, health: 20, attackPower: 5 };
+        enemies.push(enemy);
+    }
+
+    function moveEnemies() {
+        for (let i = 0; i < enemies.length; i++) {
+            enemies[i].y += enemies[i].speed;
+            if (enemies[i].y > canvas.height) {
+                enemies.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    function removeOutOfBounds() {
+        bullets.forEach((bullet, index) => {
+            if (bullet.y < 0) {
+                bullets.splice(index, 1);
+            }
+        });
+
+        enemies.forEach((enemy, index) => {
+            if (enemy.y > canvas.height) {
+                enemies.splice(index, 1);
+            }
+        });
+    }
+
+    function checkCollisions() {
+        for (let i = 0; i < enemies.length; i++) {
+            if (
+                player.x < enemies[i].x + enemies[i].width &&
+                player.x + player.width > enemies[i].x &&
+                player.y < enemies[i].y + enemies[i].height &&
+                player.y + player.height > enemies[i].y
+            ) {
+                player.health -= enemies[i].attackPower;
+                player.hitCount++;
+                enemies.splice(i, 1);
+                i--;
+            }
+
+            for (let j = 0; j < bullets.length; j++) {
+                if (
+                    bullets[j].x < enemies[i].x + enemies[i].width &&
+                    bullets[j].x + bullets[j].width > enemies[i].x &&
+                    bullets[j].y < enemies[i].y + enemies[i].height &&
+                    bullets[j].y + bullets[j].height > enemies[i].y
+                ) {
+                    enemies[i].health -= player.attackPower;
+                    bullets.splice(j, 1);
+                    j--;
+                    if (enemies[i].health <= 0) {
+                        player.attackPower += 2; // 공격력 증가
+                        enemies.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+        }
+
+        if (player.hitCount >= 8) {
+            player.health = 0;
+        }
+    }
+
+    function drawPlayer() {
+        ctx.fillStyle = "#3498db";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    function drawBullets() {
+        ctx.fillStyle = "#e74c3c";
+        for (const bullet of bullets) {
+            ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+        }
+    }
+
+    function drawEnemies() {
+        ctx.fillStyle = "#2ecc71";
+        for (const enemy of enemies) {
+            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        }
+    }
+
+    function drawHealthBar() {
+        ctx.fillStyle = "#c0392b";
+        ctx.fillRect(10, 10, player.health * 2, 20);
+    }
+
+    function drawBackground() {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+
+        ctx.fillStyle = "#ecf0f1";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+    }
+
+    function restartGame() {
+        player.x = canvas.width / 2;
+        player.y = canvas.height - 30;
+        player.health = 100;
+        player.attackPower = 10;
+        player.hitCount = 0;
+        bullets.length = 0;
+        enemies.length = 0;
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop() {
+        movePlayer();
+        moveBullets();
+        moveEnemies();
+        removeOutOfBounds();
+        checkCollisions();
+
+        if (Math.random() < 0.02) {
+            createEnemy();
+        }
+
+        drawBackground();
+        drawPlayer();
+        drawBullets();
+        drawEnemies();
+        drawHealthBar();
+
+        if (player.health > 0) {
+            requestAnimationFrame(gameLoop);
+        } else {
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillText("Game Over", canvas.width / 2 - 80, canvas.height / 2);
+        }
+    }
+
+    window.addEventListener("keydown", (e) => {
+        keys[e.key] = true;
+        if (e.key === " " || e.key === "Enter") {
+            shootBullet();
+        }
+    });
+
+    window.addEventListener("keyup", (e) => {
+        keys[e.key] = false;
+    });
+
+    requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
